@@ -52,3 +52,8 @@ def get_all_users():
     users = session.query(User).all()
     return users
 
+def stat():
+    session = Session()
+    users = session.query(User).count()
+    blocked = session.query(BlockedUser).count()
+    return [users, blocked]

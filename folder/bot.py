@@ -200,6 +200,11 @@ async def handle_reply_button(callback_query: types.CallbackQuery):
         username = f"@{zadanie.username}" if zadanie.username else "нет имени пользователя"
         await callback_query.message.answer(f"У пользователя с ID: {zadanie.tg_id} {username} была проблема: {zadanie.problem_text}")
 
+@dp.callback_query_handler(lambda c: c.data == 'stat')
+async def get_stat(callback_query: types.CallbackQuery):
+    stat = orm.stat()
+    text = f'Всего пользователей: {stat[0]}\nУдалили чат с ботом: {stat[1]}\n*Количество удаливших чат с ботом обновляется после рассылки*'
+    await bot.send_message(callback_query.from_user.id, text, parse_mode='Markdown')
 
 @dp.callback_query_handler(lambda c: c.data == 'menu')
 async def exit(message: types.Message):
