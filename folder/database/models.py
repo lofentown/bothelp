@@ -11,7 +11,19 @@ class User(Base):
     connection_date = Column(DateTime, default=datetime.now, nullable=False)
     tg_id = Column(String, nullable=False)
     admin = Column(Boolean, default=False, nullable=False)
+
+    def __repr__(self):
+        return self.tg_id
+
+class Problem(Base):
+    __tablename__ = 'problems'
+    id = Column(Integer, primary_key=True)
+    username = Column(String, default=None, nullable=True)
+    date = Column(DateTime, default=datetime.now, nullable=False)
+    tg_id = Column(String, nullable=False)
+    message_id = Column(String, nullable=False)
     problem_text = Column(String, default=None, nullable=True)
+    complete = Column(Boolean, default=False, nullable=False)
 
     def __repr__(self):
         return self.tg_id
