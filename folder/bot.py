@@ -8,6 +8,10 @@ from aiogram.utils.exceptions import ChatNotFound
 import asyncio
 from fastapi import FastAPI
 from uvicorn import run
+from aiogram.types import InputFile
+from aiogram.utils import executor
+import os
+import csv
 
 from settings import bot_settings
 from bot_menu import menu
@@ -398,6 +402,7 @@ async def inform(message: types.Message):
 @dp.callback_query_handler(lambda c: c.data == 'spisok')
 async def spisok(callback_query: types.CallbackQuery):
     zadaniya = orm.spisok_problem()
+
     for zadanie in zadaniya:
         username = f"@{zadanie.username}" if zadanie.username else "нет имени пользователя"
         inline_markup = types.InlineKeyboardMarkup()
@@ -410,6 +415,69 @@ async def spisok(callback_query: types.CallbackQuery):
         ))
         text = f"У пользователя с ID: {zadanie.tg_id} {username} была проблема: {zadanie.problem_text}"
         await callback_query.message.answer(text, reply_markup=inline_markup)
+
+@dp.callback_query_handler(lambda c: c.data == 'spisok_otziv')
+async def spisok(callback_query: types.CallbackQuery):
+    zadaniya = orm.spisok_otziv()
+
+    for zadanie in zadaniya:
+        username = f"@{zadanie.username}" if zadanie.username else "нет имени пользователя"
+        inline_markup = types.InlineKeyboardMarkup()
+        inline_markup.add(types.InlineKeyboardButton(
+            "Ответить", callback_data=f"reply:{zadanie.tg_id}"
+        ))
+        inline_markup.add(types.InlineKeyboardButton(
+            text='Завершить✅',
+            callback_data=f"end:{zadanie.otziv_text}"
+        ))
+        text = f"У пользователя с ID: {zadanie.tg_id} {username} был отзыв: {zadanie.otziv_text}"
+        await callback_query.message.answer(text, reply_markup=inline_markup)
+
+@dp.callback_query_handler(lambda c: c.data == 'vse_problems')
+async def problems(callback_query: types.CallbackQuery):
+    txt_file_path, excel_file_path = orm.vse_problems()
+    text = 'Вот все ваши файлы: '
+    await callback_query.message.answer(text)
+    # Отправляем текстовый файл
+    await bot.send_document(
+        callback_query.message.chat.id,
+        InputFile(txt_file_path),
+        caption="Список проблем в текстовом формате."
+    )
+
+    # Отправляем Excel файл
+    await bot.send_document(
+        callback_query.message.chat.id,
+        InputFile(excel_file_path),
+        caption="Список проблем в Excel формате."
+    )
+
+    # Удаляем файлы после отправки (по желанию)
+    os.remove(txt_file_path)
+    os.remove(excel_file_path)
+
+@dp.callback_query_handler(lambda c: c.data == 'vse_otzivi')
+async def problems(callback_query: types.CallbackQuery):
+    txt_file_path, excel_file_path = orm.vse_otziv()
+    text = 'Вот все ваши файлы: '
+    await callback_query.message.answer(text)
+    # Отправляем текстовый файл
+    await bot.send_document(
+        callback_query.message.chat.id,
+        InputFile(txt_file_path),
+        caption="Список отзывов в текстовом формате."
+    )
+
+    # Отправляем Excel файл
+    await bot.send_document(
+        callback_query.message.chat.id,
+        InputFile(excel_file_path),
+        caption="Список отзывов в Excel формате."
+    )
+
+    # Удаляем файлы после отправки (по желанию)
+    os.remove(txt_file_path)
+    os.remove(excel_file_path)
 
 @dp.callback_query_handler(lambda c: c.data == 'stat')
 async def get_stat(callback_query: types.CallbackQuery):

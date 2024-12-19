@@ -27,6 +27,18 @@ async def admin_menu():
             callback_data='spisok'
         ))
     inline_markup.add(types.InlineKeyboardButton(
+            text='Получить список неотвеченных отзывов',
+            callback_data='spisok_otziv'
+        ))
+    inline_markup.add(types.InlineKeyboardButton(
+            text='Получить список Всех проблем',
+            callback_data='vse_problems'
+        ))
+    inline_markup.add(types.InlineKeyboardButton(
+            text='Получить список Всех отзывов',
+            callback_data='vse_otzivi'
+        ))
+    inline_markup.add(types.InlineKeyboardButton(
             text='Создать рассылку',
             callback_data='create_mailing'
         ))
