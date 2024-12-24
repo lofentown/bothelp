@@ -206,11 +206,11 @@ async def receive_problem(message: types.Message, state: FSMContext):
     # Клавиатура с кнопкой "Ответить", содержащей ID пользователя
     inline_markup = types.InlineKeyboardMarkup()
     inline_markup.add(types.InlineKeyboardButton(
-        "Ответить", callback_data=f"reply2:{user_id},{message.message_id}"
+        "Ответить", callback_data=f"ott:{user_id},{message.message_id}"
     ))
     inline_markup.add(types.InlineKeyboardButton(
         text='Завершить✅',
-        callback_data=f"end2:{message.message_id}"
+        callback_data=f"req:{message.message_id}"
     ))
 
     users = orm.get_admins()
@@ -267,7 +267,7 @@ async def handle_reply_button(callback_query: types.CallbackQuery, state: FSMCon
     await callback_query.message.answer("Введите ваш ответ пользователю:")
     await Support.waiting_for_reply.set()
 
-@dp.callback_query_handler(lambda c: c.data.startswith("reply2"))
+@dp.callback_query_handler(lambda c: c.data.startswith("ott"))
 async def handle_reply_button(callback_query: types.CallbackQuery, state: FSMContext):
     user_id = callback_query.data.split(":")[1]
     mess_id = callback_query.data.split(",")[1]
@@ -277,7 +277,7 @@ async def handle_reply_button(callback_query: types.CallbackQuery, state: FSMCon
     await callback_query.message.answer("Введите ваш ответ пользователю:")
     await Support.waiting_for_reply2.set()
 
-@dp.callback_query_handler(lambda c: c.data.startswith("end2"))
+@dp.callback_query_handler(lambda c: c.data.startswith("req"))
 async def handle_end_button(callback_query: types.CallbackQuery, state: FSMContext):
     mess_id = callback_query.data.split(":")[1]  # Извлекаем ID пользователя из callback data
     orm.delete_otziv(mess_id)

@@ -115,7 +115,7 @@ def add_reshenie(mess_id, text):
             session.commit()
             return True
         else:
-            print(f"Задача с message_id {mess_id} не найдена.")
+            print(f"Задача с 11111111111message_id {mess_id} не найдена.")
             return False
     except Exception as e:
         print(f"Ошибка при обновлении complete_text: {e}")
@@ -135,7 +135,7 @@ def add_otvet(mess_id, text):
             session.commit()
             return True
         else:
-            print(f"Задача с message_id {mess_id} не найдена.")
+            print(f"Задача с2222222222222222 message_id {mess_id} не найдена.")
             return False
     except Exception as e:
         print(f"Ошибка при обновлении complete_text: {e}")
