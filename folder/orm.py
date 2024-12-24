@@ -65,6 +65,12 @@ def get_problem(mess_id):
         username = complete.username
         return text, user_id, username
 
+def get_mess_id(text):
+    session = Session()
+    complete = session.query(Problem).filter_by(problem_text=text).first()
+    if complete:
+        mess_id = complete.message_id
+        return mess_id
 def get_otziv(mess_id):
     session = Session()
     complete = session.query(Otziv).filter_by(message_id=mess_id).first()
@@ -128,14 +134,17 @@ def vse_problems():
     # Запись в текстовый файл
     txt_file_path = "problems.txt"
     with open(txt_file_path, "w", encoding="utf-8") as txt_file:
-        txt_file.write(
-            "ID | Username | Date | TG ID | Message ID | Problem Text | Complete | Complete Date | Complete Text\n")
-        txt_file.write("-" * 100 + "\n")
         for problem in problems:
-            txt_file.write(
-                f"{problem.id} | {problem.username or 'N/A'} | {problem.date} | {problem.tg_id} | {problem.message_id} | "
-                f"{problem.problem_text or 'N/A'} | {problem.complete} | {problem.complete_date or 'N/A'} | {problem.complete_text or 'N/A'}\n"
-            )
+            txt_file.write(f"ID: {problem.id}\n")
+            txt_file.write(f"Username: {problem.username or 'Без username'}\n")
+            txt_file.write(f"Дата: {problem.date.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            txt_file.write(f"TG ID: {problem.tg_id}\n")
+            txt_file.write(f"ID сообщения: {problem.message_id}\n")
+            txt_file.write(f"Текст проблемы: {problem.problem_text or 'Нет текста'}\n")
+            txt_file.write(f"Завершено: {'Да' if problem.complete else 'Нет'}\n")
+            txt_file.write(f"Дата завершения: {problem.complete_date.strftime('%Y-%m-%d %H:%M:%S') if problem.complete_date else '-'}\n")
+            txt_file.write(f"Ответ поддержки: {problem.complete_text or 'Нет текста'}\n")
+            txt_file.write("-" * 50 + "\n")
 
     # Запись в Excel файл
     excel_file_path = "problems.xlsx"
@@ -156,7 +165,7 @@ def vse_problems():
             problem.tg_id,
             problem.message_id,
             problem.problem_text or "Нет текста",
-            problem.complete,
+            "Да" if problem.complete else "Нет",
             problem.complete_date.strftime("%Y-%m-%d %H:%M:%S") if problem.complete_date else "-",
             problem.complete_text or "Нет текста"
         ])
@@ -170,14 +179,17 @@ def vse_otziv():
     # Запись в текстовый файл
     txt_file_path = "otziv.txt"
     with open(txt_file_path, "w", encoding="utf-8") as txt_file:
-        txt_file.write(
-            "ID | Username | Date | TG ID | Message ID | Otziv Text | Complete | Complete Date | Complete Text\n")
-        txt_file.write("-" * 100 + "\n")
         for problem in problems:
-            txt_file.write(
-                f"{problem.id} | {problem.username or 'N/A'} | {problem.date} | {problem.tg_id} | {problem.message_id} | "
-                f"{problem.otziv_text or 'N/A'} | {problem.complete} | {problem.complete_date or 'N/A'} | {problem.complete_text or 'N/A'}\n"
-            )
+            txt_file.write(f"ID: {problem.id}\n")
+            txt_file.write(f"Username: {problem.username or 'Без username'}\n")
+            txt_file.write(f"Дата: {problem.date.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            txt_file.write(f"TG ID: {problem.tg_id}\n")
+            txt_file.write(f"ID сообщения: {problem.message_id}\n")
+            txt_file.write(f"Текст отзыва: {problem.otziv_text or 'Нет текста'}\n")
+            txt_file.write(f"Завершено: {'Да' if problem.complete else 'Нет'}\n")
+            txt_file.write(f"Дата завершения: {problem.complete_date.strftime('%Y-%m-%d %H:%M:%S') if problem.complete_date else '-'}\n")
+            txt_file.write(f"Ответ поддержки: {problem.complete_text or 'Нет текста'}\n")
+            txt_file.write("-" * 50 + "\n")
 
     # Запись в Excel файл
     excel_file_path = "otziv.xlsx"
@@ -198,7 +210,7 @@ def vse_otziv():
             problem.tg_id,
             problem.message_id,
             problem.otziv_text or "Нет текста",
-            problem.complete,
+            "Да" if problem.complete else "Нет",
             problem.complete_date.strftime("%Y-%m-%d %H:%M:%S") if problem.complete_date else "-",
             problem.complete_text or "Нет текста"
         ])

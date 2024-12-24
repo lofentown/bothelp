@@ -7,7 +7,7 @@ async def main_menu():
             callback_data='information'
         ))
     inline_markup.add(types.InlineKeyboardButton(
-            text='❗️Сообщить о проблеме',
+            text='⚒️Сообщить о проблеме',
             callback_data='help'
         ))
     inline_markup.add(types.InlineKeyboardButton(

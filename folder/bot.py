@@ -1,5 +1,6 @@
 import logging
 from aiogram import Bot, Dispatcher, types, executor
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
@@ -54,6 +55,11 @@ async def set_default_commands(dp):
 
 GROUP_CHAT_ID = -4719535439
 GROUP2 = -4672936408
+active_chat_processing = False
+
+button = KeyboardButton("Завершить диалог❌", callback_data="menu")
+keyboard = ReplyKeyboardMarkup(resize_keyboard=True).add(button)
+
 @dp.message_handler(commands=['start'])
 async def start_message(message: types.Message):
     text = f'Приветствуем Вас, *{message.from_user.first_name}*!\n\nНаш бот поможет разобраться в проблеме, связанной с ИИ ботом!\n Главное меню:'
@@ -80,6 +86,15 @@ async def get_admin_menu(message: types.Message):
     text = 'Выберите необходимое действие'
     inline_markup = await menu.admin_menu()
     await message.answer(text, reply_markup=inline_markup)
+
+@dp.message_handler(lambda message: message.text == "Завершить диалог❌")
+async def zaversh(message: types.Message):
+    global active_chat_processing
+    active_chat_processing = False
+    await bot.send_message(message.from_user.id, "Диалог завершен!", reply_markup=ReplyKeyboardRemove())
+    text = 'Главное меню:'
+    inline_markup = await menu.main_menu()
+    await bot.send_message(message.from_user.id, text, reply_markup=inline_markup)
 
 @dp.callback_query_handler(lambda c: c.data == 'answer')
 async def handle_reply_button(callback_query: types.CallbackQuery):
@@ -119,11 +134,70 @@ async def send_reply(message: types.Message, state: FSMContext):
     else:
         return
 
+@dp.message_handler(content_types=types.ContentType.TEXT)
+async def handle_messages(message: types.Message):
+    global active_chat_processing
+    admin = orm.check_admin(message.from_user.id)
+    if active_chat_processing:
+        print(active_chat_processing)
+        print(admin)
+        if (admin != 1) and (message.chat.id != GROUP_CHAT_ID):
+            user_id = message.from_user.id
+            user_name = message.from_user.first_name or "Пользователь"
+            username = f"@{message.from_user.username}" if message.from_user.username else "нет имени пользователя"
+
+            # Клавиатура с кнопкой "Ответить", содержащей ID пользователя
+            inline_markup = types.InlineKeyboardMarkup()
+            inline_markup.add(types.InlineKeyboardButton(
+                "Ответить", callback_data=f"reply:{user_id},{message.message_id}"
+            ))
+            inline_markup.add(types.InlineKeyboardButton(
+                text='Завершить✅',
+                callback_data=f"end:{message.message_id}"
+            ))
+
+            users = orm.get_admins()
+            for user in users:
+                try:
+                    await bot.send_message(
+                        chat_id=user.tg_id,
+                        text=f"🔔Новая проблема\n\n"
+                             f"👤Имя: {user_name}\n"
+                             f"🔗Username: {username}\n"
+                             f"🆔ID: {user_id}\n"
+                             f"💬Сообщение:\n{message.text}",
+                        reply_markup=inline_markup
+                    )
+                except ChatNotFound:
+                    print(f"Чат с пользователем {user.tg_id} не найден.")
+                except Exception as e:
+                    print(f"Ошибка отправки сообщения администратору {user.tg_id}: {e}")
+
+            # Отправка сообщения в общий чат
+            try:
+                await bot.send_message(
+                    chat_id=GROUP_CHAT_ID,
+                    text=f"🔔Новая проблема в поддержке\n\n"
+                         f"👤Пользователь: {user_name} ({username})\n"
+                         f"🆔ID пользователя: {user_id}\n"
+                         f"🆔ID сообщения: {message.message_id}\n"
+                         f"💬Сообщение:\n{message.text}",
+                    reply_markup=inline_markup
+                )
+            except Exception as e:
+                print(f"Ошибка отправки сообщения в общий чат: {e}")
+                orm.add_problem(user_id, username, message.text, message.message_id)
+                print(message.message_id)
+
+
 
 @dp.callback_query_handler(lambda c: c.data == 'help')
 async def handle_reply_button(callback_query: types.CallbackQuery):
-    await callback_query.message.answer("Введите описание вашей проблемы:")
-    await Support.waiting_for_message.set()
+    global active_chat_processing
+    await callback_query.message.answer("Введите описание вашей проблемы:", reply_markup=keyboard)
+    active_chat_processing = True
+    print(active_chat_processing)
+    #await Support.waiting_for_message.set()
 
 @dp.callback_query_handler(lambda c: c.data == 'otziv')
 async def handle_reply_button(callback_query: types.CallbackQuery):
@@ -188,63 +262,7 @@ async def receive_problem(message: types.Message, state: FSMContext):
     )
     await state.finish()
 
-@dp.message_handler(state=Support.waiting_for_message)
-async def receive_problem(message: types.Message, state: FSMContext):
-    user_id = message.from_user.id
-    user_name = message.from_user.first_name or "Пользователь"
-    username = f"@{message.from_user.username}" if message.from_user.username else "нет имени пользователя"
 
-    # Клавиатура с кнопкой "Ответить", содержащей ID пользователя
-    inline_markup = types.InlineKeyboardMarkup()
-    inline_markup.add(types.InlineKeyboardButton(
-        "Ответить", callback_data=f"reply:{user_id},{message.message_id}"
-    ))
-    inline_markup.add(types.InlineKeyboardButton(
-        text='Завершить✅',
-        callback_data=f"end:{message.message_id}"
-    ))
-
-    users = orm.get_admins()
-    for user in users:
-        try:
-            await bot.send_message(
-                chat_id=user.tg_id,
-                text=f"🔔Новая проблема\n\n"
-                     f"👤Имя: {user_name}\n"
-                     f"🔗Username: {username}\n"
-                     f"🆔ID: {user_id}\n"
-                     f"💬Сообщение:\n{message.text}",
-                reply_markup=inline_markup
-            )
-        except ChatNotFound:
-            print(f"Чат с пользователем {user.tg_id} не найден.")
-        except Exception as e:
-            print(f"Ошибка отправки сообщения администратору {user.tg_id}: {e}")
-
-    # Отправка сообщения в общий чат
-    try:
-        await bot.send_message(
-            chat_id=GROUP_CHAT_ID,
-            text=f"🔔Новая проблема в поддержке\n\n"
-                 f"👤Пользователь: {user_name} ({username})\n"
-                 f"🆔ID пользователя: {user_id}\n"
-                 f"🆔ID сообщения: {message.message_id}\n"
-                 f"💬Сообщение:\n{message.text}",
-            reply_markup=inline_markup
-        )
-    except Exception as e:
-        print(f"Ошибка отправки сообщения в общий чат: {e}")
-
-    # Сохранение проблемы в базе данных
-    orm.add_problem(user_id, username, message.text, message.message_id)
-    print(message.message_id)
-    inline_markup = await menu.main_menu()
-    # Ответ пользователю
-    await message.answer(
-        "✅ Ваше сообщение отправлено в техподдержку. Ожидайте ответа!",
-        reply_markup=inline_markup
-    )
-    await state.finish()
 
 # Обработка кнопки "Ответить" с привязкой к пользователю
 @dp.callback_query_handler(lambda c: c.data.startswith("reply"))
@@ -260,6 +278,7 @@ async def handle_reply_button(callback_query: types.CallbackQuery, state: FSMCon
 async def handle_reply_button(callback_query: types.CallbackQuery, state: FSMContext):
     user_id = callback_query.data.split(":")[1]
     mess_id = callback_query.data.split(",")[1]
+    print(mess_id)
     admin_id = callback_query.from_user.id
     await state.update_data(user_id=user_id, admin_id=admin_id, mess_id=mess_id)
     await callback_query.message.answer("Введите ваш ответ пользователю:")
@@ -281,7 +300,7 @@ async def handle_end_button(callback_query: types.CallbackQuery, state: FSMConte
     )
 
     # Отправляем уведомление об успешном завершении
-    await callback_query.message.answer("Завершено. Ответ отправлен, сообщение в чате изменено.")
+    #await callback_query.message.answer("Завершено. Ответ отправлен, сообщение в чате изменено.")
 
 @dp.callback_query_handler(lambda c: c.data.startswith("end"))
 async def handle_end_button(callback_query: types.CallbackQuery, state: FSMContext):
@@ -299,32 +318,9 @@ async def handle_end_button(callback_query: types.CallbackQuery, state: FSMConte
     )
 
     # Отправляем уведомление об успешном завершении
-    await callback_query.message.answer("Завершено. Ответ отправлен, сообщение в чате изменено.")
+    #await callback_query.message.answer("Завершено. Ответ отправлен, сообщение в чате изменено.")
 # Отправка ответа пользователю
 @dp.message_handler(state=Support.waiting_for_reply)
-async def send_reply(message: types.Message, state: FSMContext):
-    state_data = await state.get_data()
-    user_id = state_data.get("user_id")
-    expected_admin_id = state_data.get("admin_id")
-    mess_id = state_data.get("mess_id")
-    orm.add_reshenie(mess_id, message.text)
-
-    if not user_id:
-        await message.answer("Ошибка: не найден ID пользователя для ответа.")
-        await state.finish()
-        return
-
-    if message.from_user.id == expected_admin_id:
-        try:
-            await bot.send_message(chat_id=user_id, text=f'❗️Ответ администратора на вашу проблему❗️: {message.text}')
-            await message.answer("Ответ успешно отправлен пользователю.")
-            await state.finish()
-        except Exception as e:
-            await message.answer(f"Ошибка при отправке ответа пользователю: {e}")
-    else:
-        return
-
-@dp.message_handler(state=Support.waiting_for_reply2)
 async def send_reply(message: types.Message, state: FSMContext):
     state_data = await state.get_data()
     user_id = state_data.get("user_id")
@@ -339,7 +335,30 @@ async def send_reply(message: types.Message, state: FSMContext):
 
     if message.from_user.id == expected_admin_id:
         try:
-            await bot.send_message(chat_id=user_id, text=f'❗️Ответ администратора на ваш отзыв❗️: {message.text}')
+            await bot.send_message(chat_id=user_id, text=f'ℹ⚒️{message.text}')
+            await message.answer("Ответ успешно отправлен пользователю.")
+            await state.finish()
+        except Exception as e:
+            await message.answer(f"Ошибка при отправке ответа пользователю: {e}")
+    else:
+        return
+
+@dp.message_handler(state=Support.waiting_for_reply2)
+async def send_reply(message: types.Message, state: FSMContext):
+    state_data = await state.get_data()
+    user_id = state_data.get("user_id")
+    expected_admin_id = state_data.get("admin_id")
+    mess_id = state_data.get("mess_id")
+    orm.add_reshenie(mess_id, message.text)
+
+    if not user_id:
+        await message.answer("Ошибка: не найден ID пользователя для ответа.")
+        await state.finish()
+        return
+
+    if message.from_user.id == expected_admin_id:
+        try:
+            await bot.send_message(chat_id=user_id, text=f' ✉️Ответ администратора на ваш отзыв: {message.text}')
             await message.answer("Ответ успешно отправлен пользователю.")
             await state.finish()
         except Exception as e:
@@ -406,12 +425,13 @@ async def spisok(callback_query: types.CallbackQuery):
     for zadanie in zadaniya:
         username = f"@{zadanie.username}" if zadanie.username else "нет имени пользователя"
         inline_markup = types.InlineKeyboardMarkup()
+        print(zadanie.message_id)
         inline_markup.add(types.InlineKeyboardButton(
-            "Ответить", callback_data=f"reply:{zadanie.tg_id}"
+            "Ответить", callback_data=f"reply:{zadanie.tg_id},{zadanie.message_id}"
         ))
         inline_markup.add(types.InlineKeyboardButton(
             text='Завершить✅',
-            callback_data=f"end:{zadanie.problem_text}"
+            callback_data=f"end:{zadanie.message_id}"
         ))
         text = f"У пользователя с ID: {zadanie.tg_id} {username} была проблема: {zadanie.problem_text}"
         await callback_query.message.answer(text, reply_markup=inline_markup)
@@ -424,11 +444,11 @@ async def spisok(callback_query: types.CallbackQuery):
         username = f"@{zadanie.username}" if zadanie.username else "нет имени пользователя"
         inline_markup = types.InlineKeyboardMarkup()
         inline_markup.add(types.InlineKeyboardButton(
-            "Ответить", callback_data=f"reply:{zadanie.tg_id}"
+            "Ответить", callback_data=f"reply2:{zadanie.tg_id},{zadanie.message_id}"
         ))
         inline_markup.add(types.InlineKeyboardButton(
             text='Завершить✅',
-            callback_data=f"end:{zadanie.otziv_text}"
+            callback_data=f"end2:{zadanie.message_id}"
         ))
         text = f"У пользователя с ID: {zadanie.tg_id} {username} был отзыв: {zadanie.otziv_text}"
         await callback_query.message.answer(text, reply_markup=inline_markup)
