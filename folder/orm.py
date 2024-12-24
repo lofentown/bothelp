@@ -56,6 +56,31 @@ def delete_otziv(mess_id):
         complete.complete_date = datetime.now()
         complete.complete = True
         session.commit()
+
+
+def add_typing(us_id):
+    session = Session()
+    complete = session.query(User).filter_by(tg_id=str(us_id)).first()
+    if complete:
+        complete.typing = True
+        session.commit()
+
+
+def check_typing(tg_id):
+    session = Session()
+    user = session.query(User).filter(User.tg_id == str(tg_id)).first()
+    if user.typing == True:
+        return 1
+    else:
+        return -1
+
+def remove_typing(us_id):
+    session = Session()
+    complete = session.query(User).filter_by(tg_id=str(us_id)).first()
+    if complete:
+        complete.typing = False
+        session.commit()
+
 def get_problem(mess_id):
     session = Session()
     complete = session.query(Problem).filter_by(message_id=mess_id).first()
@@ -172,6 +197,8 @@ def vse_problems():
 
     wb.save(excel_file_path)
     return txt_file_path, excel_file_path
+
+
 
 def vse_otziv():
     session = Session()

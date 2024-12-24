@@ -89,8 +89,7 @@ async def get_admin_menu(message: types.Message):
 
 @dp.message_handler(lambda message: message.text == "Завершить диалог❌")
 async def zaversh(message: types.Message):
-    global active_chat_processing
-    active_chat_processing = False
+    orm.remove_typing(message.from_user.id)
     await bot.send_message(message.from_user.id, "Диалог завершен!", reply_markup=ReplyKeyboardRemove())
     text = 'Главное меню:'
     inline_markup = await menu.main_menu()
@@ -137,66 +136,60 @@ async def send_reply(message: types.Message, state: FSMContext):
 @dp.message_handler(content_types=types.ContentType.TEXT)
 async def handle_messages(message: types.Message):
     global active_chat_processing
-    admin = orm.check_admin(message.from_user.id)
-    if active_chat_processing:
-        print(active_chat_processing)
-        print(admin)
-        if (admin != 1) and (message.chat.id != GROUP_CHAT_ID):
-            user_id = message.from_user.id
-            user_name = message.from_user.first_name or "Пользователь"
-            username = f"@{message.from_user.username}" if message.from_user.username else "нет имени пользователя"
+    print(orm.check_typing(message.from_user.id))
+    if orm.check_typing(message.from_user.id) == 1:
+        user_id = message.from_user.id
+        user_name = message.from_user.first_name or "Пользователь"
+        username = f"@{message.from_user.username}" if message.from_user.username else "нет имени пользователя"
 
-            # Клавиатура с кнопкой "Ответить", содержащей ID пользователя
-            inline_markup = types.InlineKeyboardMarkup()
-            inline_markup.add(types.InlineKeyboardButton(
-                "Ответить", callback_data=f"reply:{user_id},{message.message_id}"
-            ))
-            inline_markup.add(types.InlineKeyboardButton(
-                text='Завершить✅',
-                callback_data=f"end:{message.message_id}"
-            ))
+        # Клавиатура с кнопкой "Ответить", содержащей ID пользователя
+        inline_markup = types.InlineKeyboardMarkup()
+        inline_markup.add(types.InlineKeyboardButton(
+            "Ответить", callback_data=f"reply:{user_id},{message.message_id}"
+        ))
+        inline_markup.add(types.InlineKeyboardButton(
+            text='Завершить✅',
+            callback_data=f"end:{message.message_id}"
+        ))
 
-            users = orm.get_admins()
-            for user in users:
-                try:
-                    await bot.send_message(
-                        chat_id=user.tg_id,
-                        text=f"🔔Новая проблема\n\n"
-                             f"👤Имя: {user_name}\n"
-                             f"🔗Username: {username}\n"
-                             f"🆔ID: {user_id}\n"
-                             f"💬Сообщение:\n{message.text}",
-                        reply_markup=inline_markup
-                    )
-                except ChatNotFound:
-                    print(f"Чат с пользователем {user.tg_id} не найден.")
-                except Exception as e:
-                    print(f"Ошибка отправки сообщения администратору {user.tg_id}: {e}")
-
-            # Отправка сообщения в общий чат
+        users = orm.get_admins()
+        for user in users:
             try:
                 await bot.send_message(
-                    chat_id=GROUP_CHAT_ID,
-                    text=f"🔔Новая проблема в поддержке\n\n"
-                         f"👤Пользователь: {user_name} ({username})\n"
-                         f"🆔ID пользователя: {user_id}\n"
-                         f"🆔ID сообщения: {message.message_id}\n"
+                    chat_id=user.tg_id,
+                    text=f"🔔Новая проблема\n\n"
+                         f"👤Имя: {user_name}\n"
+                         f"🔗Username: {username}\n"
+                         f"🆔ID: {user_id}\n"
                          f"💬Сообщение:\n{message.text}",
                     reply_markup=inline_markup
                 )
+            except ChatNotFound:
+                print(f"Чат с пользователем {user.tg_id} не найден.")
             except Exception as e:
-                print(f"Ошибка отправки сообщения в общий чат: {e}")
-                orm.add_problem(user_id, username, message.text, message.message_id)
-                print(message.message_id)
+                print(f"Ошибка отправки сообщения администратору {user.tg_id}: {e}")
 
-
+        # Отправка сообщения в общий чат
+        try:
+            await bot.send_message(
+                chat_id=GROUP_CHAT_ID,
+                text=f"🔔Новая проблема в поддержке\n\n"
+                     f"👤Пользователь: {user_name} ({username})\n"
+                     f"🆔ID пользователя: {user_id}\n"
+                     f"🆔ID сообщения: {message.message_id}\n"
+                     f"💬Сообщение:\n{message.text}",
+                reply_markup=inline_markup
+            )
+        except Exception as e:
+            print(f"Ошибка отправки сообщения в общий чат: {e}")
+        orm.add_problem(user_id, username, message.text, message.message_id)
+        print(message.message_id)
 
 @dp.callback_query_handler(lambda c: c.data == 'help')
 async def handle_reply_button(callback_query: types.CallbackQuery):
     global active_chat_processing
     await callback_query.message.answer("Введите описание вашей проблемы:", reply_markup=keyboard)
-    active_chat_processing = True
-    print(active_chat_processing)
+    orm.add_typing(callback_query.from_user.id)
     #await Support.waiting_for_message.set()
 
 @dp.callback_query_handler(lambda c: c.data == 'otziv')
@@ -335,7 +328,7 @@ async def send_reply(message: types.Message, state: FSMContext):
 
     if message.from_user.id == expected_admin_id:
         try:
-            await bot.send_message(chat_id=user_id, text=f'ℹ⚒️{message.text}')
+            await bot.send_message(chat_id=user_id, text=f'⚒️{message.text}')
             await message.answer("Ответ успешно отправлен пользователю.")
             await state.finish()
         except Exception as e:
@@ -358,7 +351,7 @@ async def send_reply(message: types.Message, state: FSMContext):
 
     if message.from_user.id == expected_admin_id:
         try:
-            await bot.send_message(chat_id=user_id, text=f' ✉️Ответ администратора на ваш отзыв: {message.text}')
+            await bot.send_message(chat_id=user_id, text=f'✉️Ответ администратора на ваш отзыв: {message.text}')
             await message.answer("Ответ успешно отправлен пользователю.")
             await state.finish()
         except Exception as e:

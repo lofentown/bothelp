@@ -11,6 +11,7 @@ class User(Base):
     connection_date = Column(DateTime, default=datetime.now, nullable=False)
     tg_id = Column(String, nullable=False)
     admin = Column(Boolean, default=False, nullable=False)
+    typing = Column(Boolean, default=False, nullable=False)
 
     def __repr__(self):
         return self.tg_id
